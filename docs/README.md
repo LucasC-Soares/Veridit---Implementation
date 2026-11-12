@@ -168,3 +168,9 @@ Principais decisões consideradas com base nos requisitos do produto.
 | Registros realizados | Título, data/hora início, data/hora fim, detalhes, status |
 | Detalhes dos registros | id gerado pelo sistema, título, data/hora início, data/hora fim, tipos de dados registrados, informações dos dados (número de imagens e vídeos), usuário responsável pelo registro |
 | Relatório do registro de conteúdo | Título, id gerado pelo sistema, usuário, CPF, id do registro gerado pelo sistema, data/hora início, data/hora fim, duração, imagens capturadas, site da imagem, URL do site navegado, nome do arquivo gerado pelo sistema, tamanho do arquivo |
+
+## Implementação
+
+O escopo implementado dos cinco primeiros requisitos, o mapeamento dos ADRs e
+a aplicação dos princípios SOLID estão documentados em
+[IMPLEMENTATION.md](./IMPLEMENTATION.md).

@@ -1,0 +1,106 @@
+name: veridit
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: veridit
+      POSTGRES_PASSWORD: veridit
+      POSTGRES_DB: veridit
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veridit -d veridit"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-veridit}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-veridit}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-veridit}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-veridit-storage}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      CPF_ENCRYPTION_KEY: ${CPF_ENCRYPTION_KEY:?CPF_ENCRYPTION_KEY is required}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      DATABASE_URL: postgres://veridit:veridit@postgres:5432/veridit
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-veridit}:${RABBITMQ_PASSWORD:-veridit}@rabbitmq:5672
+      OBJECT_STORAGE_PATH: /var/lib/veridit/storage
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    volumes:
+      - veridit_storage:/var/lib/veridit/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    environment:
+      PORT: 4000
+      BACKEND_URL: http://backend:3001
+    ports:
+      - "${GATEWAY_PORT:-4000}:4000"
+    depends_on:
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  minio_data:
+  veridit_storage:
