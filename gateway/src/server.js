@@ -1,7 +1,12 @@
 import http from 'node:http';
 
 const port = Number(process.env.PORT ?? 4000);
-const target = process.env.BACKEND_URL ?? 'http://backend:3001';
+const targets = {
+  auth: process.env.ACCESS_SERVICE_URL ?? 'http://acesso:3001',
+  credits: process.env.CREDITS_SERVICE_URL ?? 'http://creditos:3001',
+  captures: process.env.CAPTURE_SERVICE_URL ?? 'http://captura:3001',
+  media: process.env.MEDIA_SERVICE_URL ?? 'http://midia:3001',
+};
 const windowMs = 15 * 60 * 1000;
 const limit = 100;
 const requests = new Map();
@@ -24,12 +29,27 @@ const server = http.createServer(async (request, response) => {
     response.end(JSON.stringify({ statusCode: 429, message: 'Too many requests' }));
     return;
   }
-  const url = new URL(request.url ?? '/', target);
-  if (url.pathname === '/gateway/health') {
+  const path = new URL(request.url ?? '/', 'http://gateway').pathname;
+  if (path === '/gateway/health') {
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ status: 'ok', component: 'api-gateway' }));
     return;
   }
+  const service = path.startsWith('/auth')
+    ? targets.auth
+    : path.startsWith('/credits')
+      ? targets.credits
+      : path.startsWith('/captures')
+        ? targets.captures
+        : path.startsWith('/media')
+          ? targets.media
+          : null;
+  if (!service) {
+    response.writeHead(404, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ statusCode: 404, message: 'Route not found' }));
+    return;
+  }
+  const url = new URL(request.url ?? '/', service);
   const body = request.method === 'GET' || request.method === 'HEAD'
     ? undefined
     : request;

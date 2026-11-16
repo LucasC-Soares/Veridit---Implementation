@@ -46,9 +46,9 @@ services:
       - "${MAILPIT_SMTP_PORT:-1025}:1025"
       - "${MAILPIT_UI_PORT:-8025}:8025"
 
-  backend:
+  acesso:
     build:
-      context: ./backend
+      context: ./acesso
       dockerfile: Dockerfile
       target: ${BUILD_TARGET:-production}
     environment:
@@ -63,13 +63,80 @@ services:
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
     ports:
-      - "${BACKEND_PORT:-3001}:3001"
-    volumes:
-      - veridit_storage:/var/lib/veridit/storage
+      - "${ACCESS_PORT:-3001}:3001"
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
+        condition: service_started
+
+  creditos:
+    build:
+      context: ./creditos
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      CPF_ENCRYPTION_KEY: ${CPF_ENCRYPTION_KEY:?CPF_ENCRYPTION_KEY is required}
+      DATABASE_URL: postgres://veridit:veridit@postgres:5432/veridit
+    ports:
+      - "${CREDITS_PORT:-3002}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      acesso:
+        condition: service_started
+
+  captura:
+    build:
+      context: ./captura
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-veridit}:${RABBITMQ_PASSWORD:-veridit}@rabbitmq:5672
+    ports:
+      - "${CAPTURE_PORT:-3003}:3001"
+    depends_on:
+      rabbitmq:
+        condition: service_started
+
+  midia:
+    build:
+      context: ./midia
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      OBJECT_STORAGE_PATH: /var/lib/veridit/storage
+    ports:
+      - "${MEDIA_PORT:-3004}:3001"
+    volumes:
+      - veridit_storage:/var/lib/veridit/storage
+
+  notificacao:
+    build:
+      context: ./notificacao
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-veridit}:${RABBITMQ_PASSWORD:-veridit}@rabbitmq:5672
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    ports:
+      - "${NOTIFICATION_PORT:-3005}:3001"
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      mailpit:
         condition: service_started
 
   gateway:
@@ -78,11 +145,17 @@ services:
       dockerfile: Dockerfile
     environment:
       PORT: 4000
-      BACKEND_URL: http://backend:3001
+      ACCESS_SERVICE_URL: http://acesso:3001
+      CREDITS_SERVICE_URL: http://creditos:3001
+      CAPTURE_SERVICE_URL: http://captura:3001
+      MEDIA_SERVICE_URL: http://midia:3001
     ports:
       - "${GATEWAY_PORT:-4000}:4000"
     depends_on:
-      - backend
+      - acesso
+      - creditos
+      - captura
+      - midia
 
   frontend:
     build:

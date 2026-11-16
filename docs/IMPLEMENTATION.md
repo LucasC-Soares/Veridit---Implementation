@@ -30,21 +30,22 @@ foram expostos nesta entrega.
 A estrutura segue os componentes definidos em `ARQUITETURA.md`, sem antecipar
 comportamento dos requisitos 6–15:
 
-- `gateway/`: entrada única, proxy para o backend e rate limiting de borda.
-- `backend/src/modules/access`: serviço de acesso funcional nos requisitos 1–4.
-- `backend/src/modules/credits`: serviço de créditos funcional no requisito 5.
-- `backend/src/modules/capture` e `backend/src/modules/media`: contratos,
-  entidades e adapters preparados, não registrados no `AppModule` nesta fase.
-- `backend/src/modules/notification`: porta de email e adapter de
+- `gateway/`: entrada única, roteamento por domínio e rate limiting de borda.
+- `acesso/`: serviço de acesso funcional nos requisitos 1–4.
+- `creditos/`: serviço de créditos funcional no requisito 5.
+- `captura/` e `midia/`: serviços independentes com contratos,
+  entidades e adapters preparados para os requisitos posteriores.
+- `notificacao/`: serviço independente com porta de email e adapter de
   desenvolvimento, usado como base para o outbox de recuperação.
-- `backend/src/shared/infrastructure/messaging`: porta de mensageria,
+- `shared/queue/`: contratos de mensageria,
   adapter em memória e adapter RabbitMQ selecionável por configuração.
-- `backend/src/shared/infrastructure/storage`: porta de objetos e adapter local
+- `shared/storage/`: porta de objetos e adapter local
   para desenvolvimento, preservando a substituição futura por S3/MinIO.
-- `backend/src/shared/infrastructure/observability`: logs JSON, health check e
+- `shared/observability/`: logs JSON, health check e
   endpoint de métricas.
 - `docker-compose.yml`: PostgreSQL, gateway, RabbitMQ, MinIO, Mailpit,
-  backend e frontend.
+  acesso, créditos, captura, mídia, notificação e frontend. Cada serviço
+  possui seu próprio `Dockerfile` e pode ser escalado separadamente.
 
 Os componentes futuros existem como limites arquiteturais e infraestrutura
 preparada, mas não iniciam captura, pagamento externo, Playwright, relatórios,
@@ -94,12 +95,12 @@ serviços.
 
 | ADR | Aplicação nesta entrega |
 | --- | --- |
-| [ADR-001](./adr/ADR-001-estilo-arquitetural-rev1.pdf) | Separação por serviços/domínios (`access` e `credits`) sobre PostgreSQL compartilhado e contratos de módulo. |
+| [ADR-001](./adr/ADR-001-estilo-arquitetural-rev1.pdf) | Separação por serviços/domínios (`acesso` e `creditos`) sobre PostgreSQL compartilhado e contratos de módulo. |
 | [ADR-002](./adr/ADR-002-integridade-rev1.pdf) | CPF com cifra e índice cego; compra inicia pendente; tabelas de `credit_ledger`, `audit_events` e `outbox_messages` preparadas para transações e idempotência. |
 | [ADR-003](./adr/ADR-003-confiabilidade-rev1.pdf) | Tokens persistidos e revogáveis; outbox e estados de compra modelados para não perder transições. |
 | [ADR-004](./adr/ADR-004-seguranca-rev1.pdf) | Argon2id, JWT curto, refresh revogável, resposta uniforme na recuperação e validação na borda. Segredos vêm de ambiente. |
 | [ADR-005](./adr/ADR-005-desempenho-rev1.pdf) | Leituras de pacotes separadas do fluxo de compra e índices/constraints no PostgreSQL; captura e workers ficam fora do escopo atual. |
-| [ADR-006](./adr/ADR-006-linguagem-e-stack.pdf) | NestJS, TypeScript, PostgreSQL e Drizzle, conforme o backend existente. |
+| [ADR-006](./adr/ADR-006-linguagem-e-stack.pdf) | NestJS, TypeScript, PostgreSQL e Drizzle nos serviços independentes. |
 | [ADR-007](./adr/ADR-007-tecnologia-de-captura.pdf) | Não implementado nos requisitos 1–5; schema de registros e artefatos preserva o contrato futuro. |
 | [ADR-008](./adr/ADR-008-persistencia-e-armazenamento.pdf) | PostgreSQL para dados transacionais; `evidence_artifacts` referencia storage de objetos sem colocar mídia no banco. |
 | [ADR-009](./adr/ADR-009-mensageria.pdf) | `outbox_messages` modela a transactional outbox para email e processamento posterior; broker fica para os requisitos seguintes. |
