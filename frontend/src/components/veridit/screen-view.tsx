@@ -1,11 +1,27 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
+import { accessService } from '@/services/access.service';
 
 export function ScreenView({ title, eyebrow, active = 'home', children }: {
   title: string; eyebrow: string; active?: 'home' | 'credits' | 'capture' | 'records'; children?: ReactNode;
 }) {
+  const router = useRouter();
+  const [authenticated, setAuthenticated] = useState(false);
+
+  useEffect(() => {
+    if (!window.localStorage.getItem('veridit.accessToken')) {
+      router.replace('/login');
+      return;
+    }
+    setAuthenticated(true);
+  }, [router]);
+
+  if (!authenticated) return null;
+
   return (
     <div className="pg">
       <PrimaryNav active={active} />
@@ -23,6 +39,27 @@ export function ScreenView({ title, eyebrow, active = 'home', children }: {
 }
 
 export function PrimaryNav({ active }: { active: 'home' | 'credits' | 'capture' | 'records' }) {
+  const router = useRouter();
+  const [userName, setUserName] = useState('Usuário');
+  const [userRole, setUserRole] = useState('');
+
+  useEffect(() => {
+    const rawUser = window.localStorage.getItem('veridit.user');
+    if (!rawUser) return;
+    try {
+      const user = JSON.parse(rawUser) as { name?: string; role?: string };
+      setUserName(user.name ?? 'Usuário');
+      setUserRole(user.role === 'LAWYER' ? 'Advogado' : 'Usuário comum');
+    } catch {
+      window.localStorage.removeItem('veridit.user');
+    }
+  }, []);
+
+  async function logout() {
+    await accessService.logout();
+    router.replace('/login');
+  }
+
   const links = [
     { key: 'home', label: 'Início', href: '/dashboard' },
     { key: 'credits', label: 'Créditos', href: '/credits' },
@@ -44,8 +81,8 @@ export function PrimaryNav({ active }: { active: 'home' | 'credits' | 'capture' 
       ))}
       <div className="nav-spacer" />
       <Link className="nav-balance" href="/credits">Saldo · 12 créditos</Link>
-      <span className="nav-user">Mariana Souza · Advogada</span>
-      <Link className="nav-logout" href="/login">Sair</Link>
+      <span className="nav-user">{userName}{userRole ? ` · ${userRole}` : ''}</span>
+      <button className="nav-logout" type="button" onClick={() => void logout()}>Sair</button>
     </nav>
   );
 }

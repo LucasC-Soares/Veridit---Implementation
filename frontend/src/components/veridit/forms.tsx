@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { accessService } from '@/services/access.service';
 import { AuthView } from './screen-view';
 
 export function AuthForm({ mode }: { mode: 'register' | 'login' | 'forgot' }) {
   const [submitted, setSubmitted] = useState(false);
+  const router = useRouter();
 
   if (mode === 'forgot') {
     return (
@@ -104,31 +107,57 @@ export function AuthForm({ mode }: { mode: 'register' | 'login' | 'forgot' }) {
   return (
     <AuthView>
       <div className="row" style={{ justifyContent: 'center', gap: 56, paddingTop: 24 }}>
-        <form
+        <LoginForm
+          onSuccess={() => router.replace('/dashboard')}
+        />
+      </div>
+    </AuthView>
+  );
+}
+
+function LoginForm({ onSuccess }: { onSuccess: () => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(undefined);
+    setLoading(true);
+    try {
+      await accessService.login(email, password);
+      onSuccess();
+    } catch (cause: unknown) {
+      setError(
+        cause instanceof Error ? cause.message : 'Não foi possível entrar.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form
           className="box col"
           style={{ flex: '0 1 460px', gap: 20 }}
-          onSubmit={(event) => {
-            event.preventDefault();
-            setSubmitted(true);
-          }}
+          onSubmit={submit}
         >
           <div className="hd"><h1>Entrar</h1></div>
           <div className="fld">
             <label className="lb" htmlFor="email">E-mail</label>
-            <input className="in" id="email" type="email" placeholder="nome@exemplo.com" />
+            <input className="in" id="email" type="email" placeholder="nome@exemplo.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
           </div>
           <div className="fld">
             <label className="lb" htmlFor="senha">Senha</label>
-            <input className="in" id="senha" type="password" />
+            <input className="in" id="senha" type="password" value={password} onChange={(event) => setPassword(event.target.value)} required />
           </div>
-          <button className="btn pri full" type="submit">Entrar</button>
-          {submitted && <p className="success">Acesso autorizado.</p>}
+          <button className="btn pri full" type="submit" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
+          {error && <p className="error">{error}</p>}
           <div className="row" style={{ justifyContent: 'space-between', gap: 12 }}>
             <Link className="lk" href="/forgot-password">Esqueci minha senha</Link>
             <Link className="lk" href="/register">Criar conta</Link>
           </div>
         </form>
-      </div>
-    </AuthView>
   );
 }

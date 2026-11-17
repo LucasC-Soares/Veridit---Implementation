@@ -1,2 +1,5 @@
-import { Dashboard } from '@/components/veridit/dashboard';
-export default Dashboard;
+import { redirect } from 'next/navigation';
+
+export default function Page() {
+  redirect('/login');
+}

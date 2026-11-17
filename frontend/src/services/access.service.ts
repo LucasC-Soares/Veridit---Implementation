@@ -14,17 +14,23 @@ const sessionSchema = z.object({
     }),
 });
 
+const userSchema = sessionSchema.shape.user;
+
 function saveSession(session: z.infer<typeof sessionSchema>) {
   if (typeof window !== 'undefined') {
     window.localStorage.setItem('veridit.accessToken', session.accessToken);
     window.localStorage.setItem('veridit.refreshToken', session.refreshToken);
+    window.localStorage.setItem(
+      'veridit.user',
+      JSON.stringify(session.user),
+    );
   }
   return session;
 }
 
 export const accessService = {
   register: (input: Record<string, unknown>) =>
-    request('/auth/register', sessionSchema, {
+    request('/auth/register', userSchema, {
       method: 'POST',
       body: JSON.stringify(input),
     }),
@@ -45,6 +51,7 @@ export const accessService = {
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('veridit.accessToken');
       window.localStorage.removeItem('veridit.refreshToken');
+      window.localStorage.removeItem('veridit.user');
     }
     return result;
   },
