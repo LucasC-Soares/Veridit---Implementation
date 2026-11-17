@@ -58,7 +58,7 @@ services:
     ports:
       - "${MAILPIT_SMTP_PORT:-1025}:1025"
       - "${MAILPIT_UI_PORT:-8025}:8025"
-    networks: [internal]
+    networks: [internal, mailpit_public]
 
   acesso:
     build:
@@ -76,6 +76,7 @@ services:
       OBJECT_STORAGE_PATH: /var/lib/veridit/storage
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
+      SMTP_FROM: no-reply@veridit.local
     depends_on:
       postgres:
         condition: service_healthy
@@ -182,6 +183,7 @@ services:
       CAPTURE_SERVICE_URL: http://captura:3001
       MEDIA_SERVICE_URL: http://midia:3001
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     ports:
       - "${GATEWAY_PORT:-4000}:4000"
     depends_on:
@@ -227,3 +229,4 @@ networks:
   edge:
   internal:
     internal: true
+  mailpit_public:

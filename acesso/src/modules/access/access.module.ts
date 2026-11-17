@@ -12,8 +12,10 @@ import { ACCESS_REPOSITORY } from './domain/repositories/access.repository';
 import { AccessRepositoryImpl } from './infrastructure/repositories/access.repository.impl';
 import { RefreshSessionUseCase } from './application/use-cases/refresh-session.use-case';
 import { RateLimitGuard } from '../../shared/infrastructure/guards/rate-limit.guard';
+import { NotificationModule } from '../notification/notification.module';
 
 @Module({
+  imports: [NotificationModule],
   controllers: [AccessController],
   providers: [
     AccessService,

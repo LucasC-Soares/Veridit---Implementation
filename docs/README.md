@@ -178,6 +178,17 @@ a aplicação dos princípios SOLID estão documentados em
 Para executar o ambiente local, copie `.env.example` para `.env`, substitua os
 segredos de exemplo por valores aleatórios e execute `docker compose up`.
 
+### Escopo atual dos requisitos 1–5
+
+Cadastro, recuperação de senha, login e logout estão conectados à API real. Os
+e-mails de recuperação são enviados ao Mailpit no ambiente local e podem ser
+consultados em `http://localhost:8025`.
+
+A compra de créditos carrega os pacotes do banco, coleta os dados de
+faturamento e cria um pedido com status pendente. As integrações efetivas com
+Mercado Pago, Pix e confirmação de pagamento ainda não fazem parte deste
+escopo.
+
 ### Métricas do gateway
 
 Com o ambiente em execução, as métricas básicas do gateway podem ser

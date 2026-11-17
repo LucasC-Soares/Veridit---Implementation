@@ -7,43 +7,12 @@ import { accessService } from '@/services/access.service';
 import { AuthView } from './screen-view';
 
 export function AuthForm({ mode }: { mode: 'register' | 'login' | 'forgot' }) {
-  const [submitted, setSubmitted] = useState(false);
   const router = useRouter();
 
   if (mode === 'forgot') {
     return (
       <AuthView action="Entrar" actionHref="/login">
-        <header className="hd">
-          <div className="col" style={{ gap: 8 }}>
-            <h1>Recuperar senha</h1>
-            <p className="mut">Duas situações da mesma tela.</p>
-          </div>
-        </header>
-        <div className="row" style={{ gap: 36 }}>
-          <form
-            className="box col"
-            style={{ flex: '1 1 420px' }}
-            onSubmit={(event) => {
-              event.preventDefault();
-              setSubmitted(true);
-            }}
-          >
-            <h3>Situação 1 · pedir o link</h3>
-            <div className="fld">
-              <label className="lb" htmlFor="email">E-mail da conta</label>
-              <input className="in" id="email" type="email" placeholder="nome@exemplo.com" />
-            </div>
-            <button className="btn pri" type="submit">Enviar link de recuperação</button>
-            {submitted && <p className="success">Solicitação enviada.</p>}
-            <Link className="lk" href="/login">Voltar ao login</Link>
-          </form>
-          <div className="box dash col" style={{ flex: '1 1 420px' }}>
-            <h3>Situação 2 · depois de enviar</h3>
-            <h2>Confira seu e-mail</h2>
-            <p>Se o endereço estiver cadastrado, enviamos um link para criar uma nova senha.</p>
-            <Link className="btn sec" href="/login">Voltar ao login</Link>
-          </div>
-        </div>
+        <ForgotPasswordForm />
       </AuthView>
     );
   }
@@ -64,6 +33,58 @@ export function AuthForm({ mode }: { mode: 'register' | 'login' | 'forgot' }) {
         />
       </div>
     </AuthView>
+  );
+}
+
+function ForgotPasswordForm() {
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string>();
+  const [loading, setLoading] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(undefined);
+    setSubmitted(false);
+    setLoading(true);
+    try {
+      await accessService.forgotPassword(email);
+      setSubmitted(true);
+    } catch (cause: unknown) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : 'Não foi possível solicitar a recuperação.',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <>
+      <header className="hd">
+        <div className="col" style={{ gap: 8 }}>
+          <h1>Recuperar senha</h1>
+          <p className="mut">Enviaremos um link para o e-mail informado.</p>
+        </div>
+      </header>
+      <div className="row" style={{ gap: 36 }}>
+        <form className="box col" style={{ flex: '1 1 420px' }} onSubmit={submit}>
+          <h3>Solicitar link</h3>
+          <div className="fld">
+            <label className="lb" htmlFor="email">E-mail da conta</label>
+            <input className="in" id="email" type="email" placeholder="nome@exemplo.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
+          </div>
+          <button className="btn pri" type="submit" disabled={loading}>
+            {loading ? 'Enviando...' : 'Enviar link de recuperação'}
+          </button>
+          {error && <p className="error">{error}</p>}
+          {submitted && <p className="success">Confira o e-mail informado para redefinir sua senha.</p>}
+          <Link className="lk" href="/login">Voltar ao login</Link>
+        </form>
+      </div>
+    </>
   );
 }
 

@@ -8,6 +8,7 @@ import {
 } from '../../domain/repositories/access.repository';
 import { PasswordHasher } from '../../infrastructure/security/argon2-password.hasher';
 import { RegisterDto, RegistrationRole } from '../dtos/access.dto';
+import { MAILER, type Mailer } from '../../../notification/domain/mailer.port';
 
 const ACCESS_TTL_SECONDS = 15 * 60;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -24,6 +25,7 @@ export class AccessService {
   constructor(
     @Inject(ACCESS_REPOSITORY) private readonly repository: AccessRepository,
     @Inject('PASSWORD_HASHER') private readonly passwordHasher: PasswordHasher,
+    @Inject(MAILER) private readonly mailer: Mailer,
   ) {}
 
   async register(input: RegisterDto) {
@@ -98,12 +100,20 @@ export class AccessService {
   async forgotPassword(email: string): Promise<void> {
     const user = await this.repository.findByEmail(email);
     if (!user) return;
+    const token = randomBytes(32).toString('base64url');
     await this.repository.createPasswordReset(
       user.id,
       user.email,
-      randomBytes(32).toString('base64url'),
+      token,
       new Date(Date.now() + 30 * 60 * 1000),
     );
+    const resetUrl = `${process.env.FRONTEND_URL ?? 'http://localhost:3000'}/reset-password?token=${encodeURIComponent(token)}`;
+    await this.mailer.send({
+      to: user.email,
+      subject: 'Recuperação de senha do Veridit',
+      text: `Use este link para redefinir sua senha: ${resetUrl}`,
+      html: `<p>Use este link para redefinir sua senha:</p><p><a href="${resetUrl}">${resetUrl}</a></p>`,
+    });
   }
 
   async resetPassword(token: string, password: string): Promise<void> {

@@ -12,11 +12,26 @@ const jwtSecret = process.env.JWT_SECRET;
 if (!jwtSecret) {
   throw new Error('JWT_SECRET is required.');
 }
+const frontendOrigin = process.env.FRONTEND_URL ?? 'http://localhost:3000';
 const windowMs = 15 * 60 * 1000;
 const limit = 100;
 const requests = new Map();
 let requestCount = 0;
 let rejectedAuthenticationCount = 0;
+
+function corsHeaders(request) {
+  const origin = request.headers.origin;
+  return origin === frontendOrigin
+    ? {
+        'access-control-allow-origin': origin,
+        'access-control-allow-methods': 'GET,HEAD,POST,PUT,PATCH,DELETE,OPTIONS',
+        'access-control-allow-headers':
+          request.headers['access-control-request-headers'] ??
+          'Content-Type, Authorization, X-Correlation-Id',
+        vary: 'Origin',
+      }
+    : {};
+}
 
 function allowed(request) {
   const address = request.socket.remoteAddress ?? 'unknown';
@@ -75,6 +90,11 @@ const server = http.createServer(async (request, response) => {
   }
   const path = new URL(request.url ?? '/', 'http://gateway').pathname;
   const correlationId = request.headers['x-correlation-id'] ?? randomUUID();
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204, corsHeaders(request));
+    response.end();
+    return;
+  }
   if (path === '/gateway/health') {
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ status: 'ok', component: 'api-gateway' }));

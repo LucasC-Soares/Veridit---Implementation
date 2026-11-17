@@ -1,4 +1,4 @@
-export const MAILER = Symbol('MAILER');
+export const MAILER = 'MAILER';
 
 export interface MailMessage {
   to: string;
