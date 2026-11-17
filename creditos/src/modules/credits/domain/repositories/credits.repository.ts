@@ -22,6 +22,7 @@ export type CreatePurchaseData = {
 
 export interface CreditsRepository {
   listPackages(): Promise<CreditPackage[]>;
+  getBalance(userId: number): Promise<number>;
   findPackage(id: number): Promise<CreditPackage | null>;
   createPurchase(data: CreatePurchaseData): Promise<CreditPurchase>;
 }

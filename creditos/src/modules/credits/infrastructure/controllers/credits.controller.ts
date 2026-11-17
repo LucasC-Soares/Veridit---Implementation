@@ -8,6 +8,7 @@ import {
 import { PurchaseCreditsDto } from '../../application/dtos/credit.dto';
 import { ListCreditPackagesUseCase } from '../../application/use-cases/list-credit-packages.use-case';
 import { CreateCreditPurchaseUseCase } from '../../application/use-cases/create-credit-purchase.use-case';
+import { GetCreditBalanceUseCase } from '../../application/use-cases/get-credit-balance.use-case';
 
 @ApiTags('Créditos')
 @Controller('credits')
@@ -15,11 +16,18 @@ export class CreditsController {
   constructor(
     private readonly listCreditPackagesUseCase: ListCreditPackagesUseCase,
     private readonly createCreditPurchaseUseCase: CreateCreditPurchaseUseCase,
+    private readonly getCreditBalanceUseCase: GetCreditBalanceUseCase,
   ) {}
 
   @Get('packages')
   packages() {
     return this.listCreditPackagesUseCase.execute();
+  }
+
+  @Get('balance')
+  @UseGuards(AccessTokenGuard)
+  balance(@CurrentUser() user: AuthenticatedUser) {
+    return this.getCreditBalanceUseCase.execute(user.id);
   }
 
   @Post('purchases')

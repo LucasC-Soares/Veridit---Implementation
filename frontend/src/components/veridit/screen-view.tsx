@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { accessService } from '@/services/access.service';
+import { creditsService } from '@/services/credits.service';
 
 export function ScreenView({ title, eyebrow, active = 'home', children }: {
   title: string; eyebrow: string; active?: 'home' | 'credits' | 'capture' | 'records'; children?: ReactNode;
@@ -42,6 +43,7 @@ export function PrimaryNav({ active }: { active: 'home' | 'credits' | 'capture' 
   const router = useRouter();
   const [userName, setUserName] = useState('Usuário');
   const [userRole, setUserRole] = useState('');
+  const [balance, setBalance] = useState<number>();
 
   useEffect(() => {
     const rawUser = window.localStorage.getItem('veridit.user');
@@ -53,6 +55,13 @@ export function PrimaryNav({ active }: { active: 'home' | 'credits' | 'capture' 
     } catch {
       window.localStorage.removeItem('veridit.user');
     }
+  }, []);
+
+  useEffect(() => {
+    void creditsService
+      .getBalance()
+      .then(({ balance: currentBalance }) => setBalance(currentBalance))
+      .catch(() => setBalance(undefined));
   }, []);
 
   async function logout() {
@@ -80,7 +89,9 @@ export function PrimaryNav({ active }: { active: 'home' | 'credits' | 'capture' 
         </Link>
       ))}
       <div className="nav-spacer" />
-      <Link className="nav-balance" href="/credits">Saldo · 12 créditos</Link>
+      <Link className="nav-balance" href="/credits">
+        {balance === undefined ? 'Saldo · indisponível' : `Saldo · ${balance} créditos`}
+      </Link>
       <span className="nav-user">{userName}{userRole ? ` · ${userRole}` : ''}</span>
       <button className="nav-logout" type="button" onClick={() => void logout()}>Sair</button>
     </nav>

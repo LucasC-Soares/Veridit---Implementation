@@ -22,9 +22,14 @@ const purchaseSchema = z.object({
   createdAt: z.string(),
 });
 
+const balanceSchema = z.object({
+  balance: z.number(),
+});
+
 export const creditsService = {
   listPackages: () =>
     request<CreditPackage[]>('/credits/packages', z.array(packageSchema)),
+  getBalance: () => request('/credits/balance', balanceSchema),
   createPurchase: (packageId: number, billing: CreditBilling) =>
     request<CreditPurchase>('/credits/purchases', purchaseSchema, {
       method: 'POST',

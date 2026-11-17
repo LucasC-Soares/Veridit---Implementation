@@ -20,6 +20,10 @@ export class CreditsService {
     return this.repository.listPackages();
   }
 
+  getBalance(userId: number) {
+    return this.repository.getBalance(userId);
+  }
+
   async createPurchase(userId: number, input: PurchaseCreditsDto) {
     const creditPackage = await this.repository.findPackage(input.packageId);
     if (!creditPackage)

@@ -105,6 +105,7 @@ const server = http.createServer(async (request, response) => {
     return;
   }
   const requiresAuthentication =
+    (path === '/credits/balance') ||
     (path.startsWith('/credits') && request.method !== 'GET') ||
     path.startsWith('/captures') ||
     path.startsWith('/media');

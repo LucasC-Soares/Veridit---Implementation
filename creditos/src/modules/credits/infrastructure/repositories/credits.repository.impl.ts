@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import {
   createCipheriv,
   createHash,
@@ -9,7 +9,11 @@ import {
 } from 'node:crypto';
 import { DATABASE } from '../../../../database/database.module';
 import { Database } from '../../../../database/database.types';
-import { creditPackages, creditPurchases } from '../../../../database/schema';
+import {
+  creditLedger,
+  creditPackages,
+  creditPurchases,
+} from '../../../../database/schema';
 import { CreditPackage } from '../../domain/entities/credit-package.entity';
 import { CreditPurchase } from '../../domain/entities/credit-purchase.entity';
 import {
@@ -33,6 +37,16 @@ export class CreditsRepositoryImpl implements CreditsRepository {
       .from(creditPackages)
       .where(eq(creditPackages.active, 1));
     return rows.map((row) => CreditPackage.create(row));
+  }
+
+  async getBalance(userId: number): Promise<number> {
+    const [row] = await this.db
+      .select({
+        balance: sql<number>`coalesce(sum(${creditLedger.amount}), 0)`,
+      })
+      .from(creditLedger)
+      .where(eq(creditLedger.userId, userId));
+    return row?.balance ?? 0;
   }
 
   async findPackage(id: number): Promise<CreditPackage | null> {
