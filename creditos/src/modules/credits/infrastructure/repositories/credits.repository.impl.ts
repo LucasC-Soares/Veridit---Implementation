@@ -42,11 +42,11 @@ export class CreditsRepositoryImpl implements CreditsRepository {
   async getBalance(userId: number): Promise<number> {
     const [row] = await this.db
       .select({
-        balance: sql<number>`coalesce(sum(${creditLedger.amount}), 0)`,
+        balance: sql<string>`coalesce(sum(${creditLedger.amount}), 0)`,
       })
       .from(creditLedger)
       .where(eq(creditLedger.userId, userId));
-    return row?.balance ?? 0;
+    return Number(row?.balance ?? 0);
   }
 
   async findPackage(id: number): Promise<CreditPackage | null> {

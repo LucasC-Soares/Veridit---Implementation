@@ -36,6 +36,7 @@ export default function Page() {
     city: '',
     state: '',
   });
+  const [validationError, setValidationError] = useState<string>();
 
   useEffect(() => {
     const value = Number(new URLSearchParams(window.location.search).get('packageId'));
@@ -49,11 +50,22 @@ export default function Page() {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!packageId) return;
+    const normalizedCpf = billing.cpf.replace(/\D/g, '');
+    const state = billing.state.trim().toUpperCase();
+    setValidationError(undefined);
+    if (normalizedCpf.length !== 11) {
+      setValidationError('CPF deve conter exatamente 11 dígitos.');
+      return;
+    }
+    if (!/^[A-Z]{2}$/.test(state)) {
+      setValidationError('Estado deve ser informado com a UF de 2 letras, por exemplo: SP.');
+      return;
+    }
     sessionStorage.setItem(
       'veridit.creditPurchase',
       JSON.stringify({
         packageId,
-        billing: { ...billing, cpf: billing.cpf.replace(/\D/g, ''), state: billing.state.toUpperCase() },
+        billing: { ...billing, cpf: normalizedCpf, state },
       }),
     );
     router.push('/credits/payment');
@@ -71,6 +83,10 @@ export default function Page() {
                 className="in"
                 id={key}
                 type={key === 'email' ? 'email' : 'text'}
+                maxLength={key === 'state' ? 2 : undefined}
+                minLength={key === 'state' ? 2 : undefined}
+                pattern={key === 'state' ? '[A-Za-z]{2}' : undefined}
+                title={key === 'state' ? 'Informe a UF com exatamente 2 letras, por exemplo: SP.' : undefined}
                 value={billing[key] ?? ''}
                 onChange={(event) => setBilling((current) => ({ ...current, [key]: event.target.value }))}
                 required={required}
@@ -78,6 +94,7 @@ export default function Page() {
             </div>
           ))}
         </div>
+        {validationError && <p className="error">{validationError}</p>}
         <div className="row" style={{ gap: 16 }}>
           <Link className="btn sec" href="/credits">Voltar</Link>
           <button className="btn pri" type="submit">Continuar para pagamento</button>
