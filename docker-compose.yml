@@ -16,6 +16,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks: [internal]
 
   rabbitmq:
     image: rabbitmq:4-management-alpine
@@ -27,6 +28,12 @@ services:
       - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   minio:
     image: minio/minio:latest
@@ -39,12 +46,19 @@ services:
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   mailpit:
     image: axllent/mailpit:latest
     ports:
       - "${MAILPIT_SMTP_PORT:-1025}:1025"
       - "${MAILPIT_UI_PORT:-8025}:8025"
+    networks: [internal]
 
   acesso:
     build:
@@ -62,13 +76,17 @@ services:
       OBJECT_STORAGE_PATH: /var/lib/veridit/storage
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
-    ports:
-      - "${ACCESS_PORT:-3001}:3001"
     depends_on:
       postgres:
         condition: service_healthy
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   creditos:
     build:
@@ -81,13 +99,15 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       CPF_ENCRYPTION_KEY: ${CPF_ENCRYPTION_KEY:?CPF_ENCRYPTION_KEY is required}
       DATABASE_URL: postgres://veridit:veridit@postgres:5432/veridit
-    ports:
-      - "${CREDITS_PORT:-3002}:3001"
     depends_on:
       postgres:
         condition: service_healthy
-      acesso:
-        condition: service_started
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   captura:
     build:
@@ -99,11 +119,15 @@ services:
       PORT: 3001
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-veridit}:${RABBITMQ_PASSWORD:-veridit}@rabbitmq:5672
-    ports:
-      - "${CAPTURE_PORT:-3003}:3001"
     depends_on:
       rabbitmq:
-        condition: service_started
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   midia:
     build:
@@ -115,10 +139,14 @@ services:
       PORT: 3001
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       OBJECT_STORAGE_PATH: /var/lib/veridit/storage
-    ports:
-      - "${MEDIA_PORT:-3004}:3001"
     volumes:
       - veridit_storage:/var/lib/veridit/storage
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   notificacao:
     build:
@@ -131,13 +159,17 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-veridit}:${RABBITMQ_PASSWORD:-veridit}@rabbitmq:5672
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
-    ports:
-      - "${NOTIFICATION_PORT:-3005}:3001"
     depends_on:
       rabbitmq:
         condition: service_started
       mailpit:
         condition: service_started
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   gateway:
     build:
@@ -149,13 +181,24 @@ services:
       CREDITS_SERVICE_URL: http://creditos:3001
       CAPTURE_SERVICE_URL: http://captura:3001
       MEDIA_SERVICE_URL: http://midia:3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
     ports:
       - "${GATEWAY_PORT:-4000}:4000"
     depends_on:
-      - acesso
-      - creditos
-      - captura
-      - midia
+      acesso:
+        condition: service_healthy
+      creditos:
+        condition: service_healthy
+      captura:
+        condition: service_healthy
+      midia:
+        condition: service_healthy
+    networks: [edge, internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/gateway/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   frontend:
     build:
@@ -170,10 +213,17 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      - gateway
+      gateway:
+        condition: service_healthy
+    networks: [edge]
 
 volumes:
   postgres_data:
   rabbitmq_data:
   minio_data:
   veridit_storage:
+
+networks:
+  edge:
+  internal:
+    internal: true

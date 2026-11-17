@@ -174,3 +174,26 @@ Principais decisões consideradas com base nos requisitos do produto.
 O escopo implementado dos cinco primeiros requisitos, o mapeamento dos ADRs e
 a aplicação dos princípios SOLID estão documentados em
 [IMPLEMENTATION.md](./IMPLEMENTATION.md).
+
+Para executar o ambiente local, copie `.env.example` para `.env`, substitua os
+segredos de exemplo por valores aleatórios e execute `docker compose up`.
+
+### Métricas do gateway
+
+Com o ambiente em execução, as métricas básicas do gateway podem ser
+consultadas em:
+
+```text
+http://localhost:4000/gateway/metrics
+```
+
+Exemplo:
+
+```bash
+curl http://localhost:4000/gateway/metrics
+```
+
+O endpoint retorna texto no formato compatível com Prometheus, incluindo o
+número total de requisições e o número de rejeições por autenticação inválida.
+O endpoint de disponibilidade do gateway é
+`http://localhost:4000/gateway/health`.

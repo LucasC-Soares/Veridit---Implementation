@@ -9,7 +9,10 @@ import { jwtVerify } from 'jose';
 @Injectable()
 export class AccessTokenGuard implements CanActivate {
   private readonly secret = new TextEncoder().encode(
-    process.env.JWT_SECRET ?? 'development-only-change-me',
+    process.env.JWT_SECRET ??
+      (() => {
+        throw new Error('JWT_SECRET não configurada.');
+      })(),
   );
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

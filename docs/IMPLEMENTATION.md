@@ -30,7 +30,8 @@ foram expostos nesta entrega.
 A estrutura segue os componentes definidos em `ARQUITETURA.md`, sem antecipar
 comportamento dos requisitos 6–15:
 
-- `gateway/`: entrada única, roteamento por domínio e rate limiting de borda.
+- `gateway/`: entrada única, validação do access token nas rotas protegidas,
+  propagação de correlation-id, roteamento por domínio e rate limiting de borda.
 - `acesso/`: serviço de acesso funcional nos requisitos 1–4.
 - `creditos/`: serviço de créditos funcional no requisito 5.
 - `captura/` e `midia/`: serviços independentes com contratos,
@@ -41,11 +42,27 @@ comportamento dos requisitos 6–15:
   adapter em memória e adapter RabbitMQ selecionável por configuração.
 - `shared/storage/`: porta de objetos e adapter local
   para desenvolvimento, preservando a substituição futura por S3/MinIO.
-- `shared/observability/`: logs JSON, health check e
-  endpoint de métricas.
+- `shared/observability/`: logs JSON, health check e endpoint de métricas em
+  formato compatível com Prometheus.
 - `docker-compose.yml`: PostgreSQL, gateway, RabbitMQ, MinIO, Mailpit,
   acesso, créditos, captura, mídia, notificação e frontend. Cada serviço
   possui seu próprio `Dockerfile` e pode ser escalado separadamente.
+
+### Acesso às métricas
+
+O gateway expõe as métricas básicas em `GET /gateway/metrics`. Durante a
+execução local, consulte `http://localhost:4000/gateway/metrics`, por exemplo:
+
+```bash
+curl http://localhost:4000/gateway/metrics
+```
+
+A resposta usa o formato de texto do Prometheus e contém as métricas
+`veridit_gateway_requests_total` e
+`veridit_gateway_authentication_rejections_total`. O endpoint
+`GET /gateway/health` pode ser usado para verificar a disponibilidade do
+gateway. A coleta por Prometheus, dashboards Grafana e alertas ainda não fazem
+parte do escopo atual.
 
 Os componentes futuros existem como limites arquiteturais e infraestrutura
 preparada, mas não iniciam captura, pagamento externo, Playwright, relatórios,
@@ -98,7 +115,7 @@ serviços.
 | [ADR-001](./adr/ADR-001-estilo-arquitetural-rev1.pdf) | Separação por serviços/domínios (`acesso` e `creditos`) sobre PostgreSQL compartilhado e contratos de módulo. |
 | [ADR-002](./adr/ADR-002-integridade-rev1.pdf) | CPF com cifra e índice cego; compra inicia pendente; tabelas de `credit_ledger`, `audit_events` e `outbox_messages` preparadas para transações e idempotência. |
 | [ADR-003](./adr/ADR-003-confiabilidade-rev1.pdf) | Tokens persistidos e revogáveis; outbox e estados de compra modelados para não perder transições. |
-| [ADR-004](./adr/ADR-004-seguranca-rev1.pdf) | Argon2id, JWT curto, refresh revogável, resposta uniforme na recuperação e validação na borda. Segredos vêm de ambiente. |
+| [ADR-004](./adr/ADR-004-seguranca-rev1.pdf) | Argon2id, JWT curto, refresh revogável, resposta uniforme na recuperação, validação no gateway e nos serviços, e segredos obrigatórios vindos do ambiente. |
 | [ADR-005](./adr/ADR-005-desempenho-rev1.pdf) | Leituras de pacotes separadas do fluxo de compra e índices/constraints no PostgreSQL; captura e workers ficam fora do escopo atual. |
 | [ADR-006](./adr/ADR-006-linguagem-e-stack.pdf) | NestJS, TypeScript, PostgreSQL e Drizzle nos serviços independentes. |
 | [ADR-007](./adr/ADR-007-tecnologia-de-captura.pdf) | Não implementado nos requisitos 1–5; schema de registros e artefatos preserva o contrato futuro. |
@@ -106,8 +123,8 @@ serviços.
 | [ADR-009](./adr/ADR-009-mensageria.pdf) | `outbox_messages` modela a transactional outbox para email e processamento posterior; broker fica para os requisitos seguintes. |
 | [ADR-010](./adr/ADR-010-integracao-de-pagamento.pdf) | Compra fica `AWAITING_PAYMENT`; adaptador/webhook e concessão de créditos aguardam REQ06–07. |
 | [ADR-011](./adr/ADR-011-envio-de-email.pdf) | Recuperação não confirma existência do email; o envio real será consumer de outbox no módulo de notificação. |
-| [ADR-012](./adr/ADR-012-implantacao.pdf) | Docker Compose, `.env.example`, PostgreSQL com healthcheck e migrações Drizzle. |
-| [ADR-013](./adr/ADR-013-observabilidade.pdf) | Correlation-id, logs estruturados e métricas completas ficam como evolução; nenhum dado sensível é incluído nas respostas ou nos logs desta camada. |
+| [ADR-012](./adr/ADR-012-implantacao.pdf) | Docker Compose, `.env.example`, redes internas, healthchecks dos serviços e PostgreSQL com healthcheck e migrações Drizzle. |
+| [ADR-013](./adr/ADR-013-observabilidade.pdf) | Correlation-id propagado pelo gateway, logs estruturados, health checks e métricas Prometheus básicas; agregação, dashboards e alertas ficam como evolução. |
 
 ## SOLID
 

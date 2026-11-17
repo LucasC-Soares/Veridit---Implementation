@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 
 const port = Number(process.env.PORT ?? 4000);
 const targets = {
@@ -7,9 +8,15 @@ const targets = {
   captures: process.env.CAPTURE_SERVICE_URL ?? 'http://captura:3001',
   media: process.env.MEDIA_SERVICE_URL ?? 'http://midia:3001',
 };
+const jwtSecret = process.env.JWT_SECRET;
+if (!jwtSecret) {
+  throw new Error('JWT_SECRET is required.');
+}
 const windowMs = 15 * 60 * 1000;
 const limit = 100;
 const requests = new Map();
+let requestCount = 0;
+let rejectedAuthenticationCount = 0;
 
 function allowed(request) {
   const address = request.socket.remoteAddress ?? 'unknown';
@@ -23,16 +30,64 @@ function allowed(request) {
   return current.count <= limit;
 }
 
+function base64UrlDecode(value) {
+  return Buffer.from(value, 'base64url').toString('utf8');
+}
+
+function authenticate(request) {
+  const authorization = request.headers.authorization;
+  const token = authorization?.replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+
+  const [encodedHeader, encodedPayload, signature] = token.split('.');
+  if (!encodedHeader || !encodedPayload || !signature) return null;
+
+  const expected = createHmac('sha256', jwtSecret)
+    .update(`${encodedHeader}.${encodedPayload}`)
+    .digest();
+  const received = Buffer.from(signature, 'base64url');
+  if (
+    received.length !== expected.length ||
+    !timingSafeEqual(received, expected)
+  ) {
+    return null;
+  }
+
+  try {
+    const header = JSON.parse(base64UrlDecode(encodedHeader));
+    const payload = JSON.parse(base64UrlDecode(encodedPayload));
+    if (header.alg !== 'HS256' || typeof payload.sub !== 'string') return null;
+    if (typeof payload.exp !== 'number' || payload.exp <= Date.now() / 1000) {
+      return null;
+    }
+    return { id: payload.sub, role: String(payload.role ?? '') };
+  } catch {
+    return null;
+  }
+}
+
 const server = http.createServer(async (request, response) => {
+  requestCount += 1;
   if (!allowed(request)) {
     response.writeHead(429, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ statusCode: 429, message: 'Too many requests' }));
     return;
   }
   const path = new URL(request.url ?? '/', 'http://gateway').pathname;
+  const correlationId = request.headers['x-correlation-id'] ?? randomUUID();
   if (path === '/gateway/health') {
     response.writeHead(200, { 'content-type': 'application/json' });
     response.end(JSON.stringify({ status: 'ok', component: 'api-gateway' }));
+    return;
+  }
+  if (path === '/gateway/metrics') {
+    response.writeHead(200, { 'content-type': 'text/plain; version=0.0.4' });
+    response.end(
+      [
+        `veridit_gateway_requests_total ${requestCount}`,
+        `veridit_gateway_authentication_rejections_total ${rejectedAuthenticationCount}`,
+      ].join('\n'),
+    );
     return;
   }
   const service = path.startsWith('/auth')
@@ -49,14 +104,31 @@ const server = http.createServer(async (request, response) => {
     response.end(JSON.stringify({ statusCode: 404, message: 'Route not found' }));
     return;
   }
+  const requiresAuthentication =
+    path.startsWith('/credits') ||
+    path.startsWith('/captures') ||
+    path.startsWith('/media');
+  const user = requiresAuthentication ? authenticate(request) : null;
+  if (requiresAuthentication && !user) {
+    rejectedAuthenticationCount += 1;
+    response.writeHead(401, { 'content-type': 'application/json' });
+    response.end(JSON.stringify({ statusCode: 401, message: 'Autenticação obrigatória.' }));
+    return;
+  }
   const url = new URL(request.url ?? '/', service);
   const body = request.method === 'GET' || request.method === 'HEAD'
     ? undefined
     : request;
   try {
+    const headers = new Headers(request.headers);
+    headers.set('x-correlation-id', correlationId);
+    if (user) {
+      headers.set('x-authenticated-user-id', user.id);
+      headers.set('x-authenticated-user-role', user.role);
+    }
     const upstream = await fetch(url, {
       method: request.method,
-      headers: request.headers,
+      headers,
       body,
       duplex: body ? 'half' : undefined,
     });

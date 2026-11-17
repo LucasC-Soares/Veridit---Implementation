@@ -20,7 +20,10 @@ import {
 @Injectable()
 export class CreditsRepositoryImpl implements CreditsRepository {
   private readonly cpfSecret =
-    process.env.CPF_ENCRYPTION_KEY ?? 'development-only-cpf-key';
+    process.env.CPF_ENCRYPTION_KEY ??
+    (() => {
+      throw new Error('CPF_ENCRYPTION_KEY não configurada.');
+    })();
 
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 

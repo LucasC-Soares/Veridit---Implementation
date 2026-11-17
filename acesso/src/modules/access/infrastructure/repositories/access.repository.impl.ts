@@ -25,7 +25,10 @@ import { User } from '../../domain/entities/user.entity';
 @Injectable()
 export class AccessRepositoryImpl implements AccessRepository {
   private readonly cpfSecret =
-    process.env.CPF_ENCRYPTION_KEY ?? 'development-only-cpf-key';
+    process.env.CPF_ENCRYPTION_KEY ??
+    (() => {
+      throw new Error('CPF_ENCRYPTION_KEY não configurada.');
+    })();
 
   constructor(@Inject(DATABASE) private readonly db: Database) {}
 
