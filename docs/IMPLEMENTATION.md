@@ -42,6 +42,10 @@ comportamento dos requisitos 6–15:
   adapter em memória e adapter RabbitMQ selecionável por configuração.
 - `shared/storage/`: porta de objetos e adapter local
   para desenvolvimento, preservando a substituição futura por S3/MinIO.
+- O ambiente local usa `cgr.dev/chainguard/minio` com digest fixado porque
+  `minio/minio:latest` não estava disponível para pull no Docker Hub em
+  16/11/2026. Essa dependência é temporária e deve ser reavaliada antes de
+  produção; a decisão está registrada na ADR-008.
 - `shared/observability/`: logs JSON, health check e endpoint de métricas em
   formato compatível com Prometheus.
 - `docker-compose.yml`: PostgreSQL, gateway, RabbitMQ, MinIO, Mailpit,

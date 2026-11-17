@@ -36,7 +36,7 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest@sha256:1ec745a06a986762f89e68e855fc189f403941eff8c0a5f94767e92c8e39d3f5
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-veridit}
@@ -48,7 +48,7 @@ services:
       - minio_data:/data
     networks: [internal]
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "minio", "--version"]
       interval: 10s
       timeout: 5s
       retries: 10
