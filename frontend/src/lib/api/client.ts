@@ -15,7 +15,6 @@ export async function request<T>(
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...init,
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
