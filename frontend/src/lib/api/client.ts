@@ -7,10 +7,18 @@ export async function request<T>(
   schema: z.ZodType<T>,
   init?: RequestInit,
 ): Promise<T> {
+  const accessToken =
+    typeof window !== 'undefined'
+      ? window.localStorage.getItem('veridit.accessToken')
+      : null;
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers: {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      ...(init?.headers ?? {}),
+    },
   });
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.success) {

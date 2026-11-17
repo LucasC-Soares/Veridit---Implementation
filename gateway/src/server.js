@@ -105,7 +105,7 @@ const server = http.createServer(async (request, response) => {
     return;
   }
   const requiresAuthentication =
-    path.startsWith('/credits') ||
+    (path.startsWith('/credits') && request.method !== 'GET') ||
     path.startsWith('/captures') ||
     path.startsWith('/media');
   const user = requiresAuthentication ? authenticate(request) : null;

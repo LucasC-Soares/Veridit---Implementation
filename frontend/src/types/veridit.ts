@@ -8,17 +8,40 @@ export type ApiResponse<T> = {
 };
 
 export type User = {
-  id: string;
+  id: number;
   name: string;
   email: string;
-  role?: 'LAWYER' | 'COMMON_USER';
+  role: 'LAWYER' | 'COMMON';
 };
 
 export type CreditPackage = {
-  id: string;
+  id: number;
   name: string;
   credits: number;
-  price: number;
+  pricePerCreditCents: number;
+  benefitsDescription: string;
+};
+
+export type CreditBilling = {
+  fullName: string;
+  email: string;
+  phone: string;
+  cpf: string;
+  postalCode: string;
+  address: string;
+  number: string;
+  complement?: string;
+  neighborhood: string;
+  city: string;
+  state: string;
+};
+
+export type CreditPurchase = {
+  id: number;
+  packageId: number;
+  totalCents: number;
+  status: string;
+  createdAt: string;
 };
 
 export type EvidenceRecord = {

@@ -1,19 +1,33 @@
 import { z } from 'zod';
 import { request } from '@/lib/api/client';
-import type { CreditPackage } from '@/types/veridit';
+import type {
+  CreditBilling,
+  CreditPackage,
+  CreditPurchase,
+} from '@/types/veridit';
 
 const packageSchema = z.object({
-  id: z.string(),
+  id: z.number(),
   name: z.string(),
   credits: z.number(),
-  price: z.number(),
+  pricePerCreditCents: z.number(),
+  benefitsDescription: z.string(),
 });
+
+const purchaseSchema = z.object({
+  id: z.number(),
+  packageId: z.number(),
+  totalCents: z.number(),
+  status: z.string(),
+  createdAt: z.string(),
+});
+
 export const creditsService = {
   listPackages: () =>
     request<CreditPackage[]>('/credits/packages', z.array(packageSchema)),
-  createPurchase: (packageId: string, billing: Record<string, unknown>) =>
-    request('/credits/purchases', z.unknown(), {
+  createPurchase: (packageId: number, billing: CreditBilling) =>
+    request<CreditPurchase>('/credits/purchases', purchaseSchema, {
       method: 'POST',
-      body: JSON.stringify({ packageId, billing }),
+      body: JSON.stringify({ packageId, ...billing }),
     }),
 };
