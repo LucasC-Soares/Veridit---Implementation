@@ -11,15 +11,22 @@ export async function request<T>(
     typeof window !== 'undefined'
       ? window.localStorage.getItem('veridit.accessToken')
       : null;
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...(init?.headers ?? {}),
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new Error(
+      'Não foi possível conectar ao servidor. Verifique se a API está em execução e tente novamente.',
+    );
+  }
   const body = await response.json().catch(() => null);
   if (!response.ok || !body?.success) {
     throw new Error(body?.message ?? 'Não foi possível concluir a operação.');
