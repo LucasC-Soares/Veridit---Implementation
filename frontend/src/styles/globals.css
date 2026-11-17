@@ -178,6 +178,16 @@ h3 {
   text-transform: uppercase;
 }
 
+.nav-logout {
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.nav-logout:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
 .hd {
   display: flex;
   flex-wrap: wrap;
