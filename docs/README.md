@@ -168,3 +168,43 @@ Principais decisões consideradas com base nos requisitos do produto.
 | Registros realizados | Título, data/hora início, data/hora fim, detalhes, status |
 | Detalhes dos registros | id gerado pelo sistema, título, data/hora início, data/hora fim, tipos de dados registrados, informações dos dados (número de imagens e vídeos), usuário responsável pelo registro |
 | Relatório do registro de conteúdo | Título, id gerado pelo sistema, usuário, CPF, id do registro gerado pelo sistema, data/hora início, data/hora fim, duração, imagens capturadas, site da imagem, URL do site navegado, nome do arquivo gerado pelo sistema, tamanho do arquivo |
+
+## Implementação
+
+O escopo implementado dos cinco primeiros requisitos, o mapeamento dos ADRs e
+a aplicação dos princípios SOLID estão documentados em
+[IMPLEMENTATION.md](./IMPLEMENTATION.md).
+
+Para executar o ambiente local, copie `.env.example` para `.env`, substitua os
+segredos de exemplo por valores aleatórios e execute `docker compose up`.
+
+### Escopo atual dos requisitos 1–5
+
+Cadastro, recuperação de senha, login e logout estão conectados à API real. Os
+e-mails de recuperação são enviados ao Mailpit no ambiente local e podem ser
+consultados em `http://localhost:8025`.
+
+A compra de créditos carrega os pacotes do banco, coleta os dados de
+faturamento e cria um pedido com status pendente. As integrações efetivas com
+Mercado Pago, Pix e confirmação de pagamento ainda não fazem parte deste
+escopo.
+
+### Métricas do gateway
+
+Com o ambiente em execução, as métricas básicas do gateway podem ser
+consultadas em:
+
+```text
+http://localhost:4000/gateway/metrics
+```
+
+Exemplo:
+
+```bash
+curl http://localhost:4000/gateway/metrics
+```
+
+O endpoint retorna texto no formato compatível com Prometheus, incluindo o
+número total de requisições e o número de rejeições por autenticação inválida.
+O endpoint de disponibilidade do gateway é
+`http://localhost:4000/gateway/health`.

@@ -1,0 +1,232 @@
+name: veridit
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: veridit
+      POSTGRES_PASSWORD: veridit
+      POSTGRES_DB: veridit
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veridit -d veridit"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [internal]
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-veridit}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-veridit}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: cgr.dev/chainguard/minio:latest@sha256:1ec745a06a986762f89e68e855fc189f403941eff8c0a5f94767e92c8e39d3f5
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-veridit}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-veridit-storage}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "minio", "--version"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    networks: [internal, mailpit_public]
+
+  acesso:
+    build:
+      context: ./acesso
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      CPF_ENCRYPTION_KEY: ${CPF_ENCRYPTION_KEY:?CPF_ENCRYPTION_KEY is required}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      DATABASE_URL: postgres://veridit:veridit@postgres:5432/veridit
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-veridit}:${RABBITMQ_PASSWORD:-veridit}@rabbitmq:5672
+      OBJECT_STORAGE_PATH: /var/lib/veridit/storage
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      SMTP_FROM: no-reply@veridit.local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  creditos:
+    build:
+      context: ./creditos
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      CPF_ENCRYPTION_KEY: ${CPF_ENCRYPTION_KEY:?CPF_ENCRYPTION_KEY is required}
+      DATABASE_URL: postgres://veridit:veridit@postgres:5432/veridit
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  captura:
+    build:
+      context: ./captura
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-veridit}:${RABBITMQ_PASSWORD:-veridit}@rabbitmq:5672
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  midia:
+    build:
+      context: ./midia
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      OBJECT_STORAGE_PATH: /var/lib/veridit/storage
+    volumes:
+      - veridit_storage:/var/lib/veridit/storage
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  notificacao:
+    build:
+      context: ./notificacao
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3001
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-veridit}:${RABBITMQ_PASSWORD:-veridit}@rabbitmq:5672
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      mailpit:
+        condition: service_started
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    environment:
+      PORT: 4000
+      ACCESS_SERVICE_URL: http://acesso:3001
+      CREDITS_SERVICE_URL: http://creditos:3001
+      CAPTURE_SERVICE_URL: http://captura:3001
+      MEDIA_SERVICE_URL: http://midia:3001
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    ports:
+      - "${GATEWAY_PORT:-4000}:4000"
+    depends_on:
+      acesso:
+        condition: service_healthy
+      creditos:
+        condition: service_healthy
+      captura:
+        condition: service_healthy
+      midia:
+        condition: service_healthy
+    networks: [edge, internal]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/gateway/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: ${BUILD_TARGET:-production}
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      gateway:
+        condition: service_healthy
+    networks: [edge]
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  minio_data:
+  veridit_storage:
+
+networks:
+  edge:
+  internal:
+    internal: true
+  mailpit_public:
